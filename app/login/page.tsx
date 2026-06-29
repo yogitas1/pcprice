@@ -32,8 +32,10 @@ function LoginForm() {
 
   function handleGoogleSignIn() {
     const redirectTo = encodeURIComponent(`${window.location.origin}/auth/callback`);
-    const base = process.env.NEXT_PUBLIC_BUTTERBASE_URL;
-    window.location.href = `${base}/auth/google?redirect_to=${redirectTo}`;
+    // OAuth initiation URL: https://api.butterbase.ai/auth/{app_id}/oauth/{provider}
+    const apiUrl = process.env.NEXT_PUBLIC_BUTTERBASE_URL!;
+    const appId = apiUrl.split('/').filter(Boolean).pop()!;
+    window.location.href = `https://api.butterbase.ai/auth/${appId}/oauth/google?redirect_to=${redirectTo}`;
   }
 
   return (
