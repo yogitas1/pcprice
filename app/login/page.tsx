@@ -31,11 +31,9 @@ function LoginForm() {
   }
 
   function handleGoogleSignIn() {
-    const { url } = butterbase.auth.signInWithOAuth({
-      provider: 'google',
-      redirectTo: `${window.location.origin}/auth/callback`,
-    });
-    window.location.href = url;
+    const redirectTo = encodeURIComponent(`${window.location.origin}/auth/callback`);
+    const base = process.env.NEXT_PUBLIC_BUTTERBASE_URL;
+    window.location.href = `${base}/auth/google?redirect_to=${redirectTo}`;
   }
 
   return (
