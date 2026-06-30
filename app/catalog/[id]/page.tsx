@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 import {
   ComposedChart, Line, Area, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine, Legend,
@@ -89,8 +89,8 @@ export default function CatalogPage({ params }: Props) {
   const [chartData, setChartData] = useState<any[]>([]);
 
   const fetchAll = useCallback(async () => {
-    const session = await butterbase.auth.getSession();
-    const userId = (session as any).data?.session?.user?.id ?? null;
+    const session = getSession();
+    const userId = session?.user?.id ?? null;
 
     const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
 

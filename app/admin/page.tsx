@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 
 const BB_BASE = 'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn';
 
@@ -15,9 +15,8 @@ const TAB_LABELS: Record<Tab, string> = {
   reports: 'Reports', scammer_db: 'Scammer DB',
 };
 
-async function getToken() {
-  const session = await butterbase.auth.getSession();
-  return (session as any).data?.session?.access_token ?? null;
+function getToken() {
+  return getSession()?.accessToken ?? null;
 }
 
 function StatBlock({ label, value, sub, subColor }: { label: string; value: React.ReactNode; sub?: string; subColor?: string }) {
@@ -306,8 +305,8 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     (async () => {
-      const session = await butterbase.auth.getSession();
-      const userId = (session as any).data?.session?.user?.id;
+      const session = getSession();
+      const userId = session?.user?.id ?? null;
       if (!userId) { router.push('/login'); return; }
       const { data } = await (butterbase as any).from('admin_users').select('id').eq('user_id', userId).maybeSingle();
       if (!data) { setForbidden(true); }

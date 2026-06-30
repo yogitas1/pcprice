@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 
 const BB_BASE = 'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn';
 
@@ -11,9 +11,8 @@ const GRADE_LABELS: Record<number, string> = {
 
 const CARRIERS = ['USPS', 'UPS', 'FedEx', 'DHL', 'Other'];
 
-async function getToken(): Promise<string | null> {
-  const session = await butterbase.auth.getSession();
-  return (session as any).data?.session?.access_token ?? null;
+function getToken(): string | null {
+  return getSession()?.accessToken ?? null;
 }
 
 interface Rate {

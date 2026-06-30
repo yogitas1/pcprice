@@ -19,6 +19,8 @@ const SKIP_PATTERNS = [
   /cancel/i,
   /sign out/i,
   /log out/i,
+  /continue with google/i, // navigates to external OAuth — cannot return to localhost
+  /continue with/i,        // any other third-party SSO button
 ];
 
 function shouldSkip(label: string) {
@@ -29,9 +31,12 @@ function attachErrorListeners(page: Page, errors: string[]) {
   page.on("pageerror", (err) => errors.push(`[pageerror] ${err.message}`));
   page.on("requestfailed", (req) => {
     const url = req.url();
-    // Next.js RSC prefetch requests (_rsc=) are aborted on navigation — not a bug.
-    if (url.includes("_rsc=") && req.failure()?.errorText === "net::ERR_ABORTED") return;
-    errors.push(`[requestfailed] ${url} - ${req.failure()?.errorText}`);
+    const err = req.failure()?.errorText;
+    // ERR_ABORTED on navigation is expected for:
+    //   - Next.js RSC prefetch requests (_rsc=) cancelled when the page navigates
+    //   - External OAuth redirects (Google, etc.) that leave localhost
+    if (err === "net::ERR_ABORTED" && (url.includes("_rsc=") || !url.startsWith("http://localhost"))) return;
+    errors.push(`[requestfailed] ${url} - ${err}`);
   });
   page.on("response", (res) => {
     if (res.status() >= 500) errors.push(`[http ${res.status()}] ${res.url()}`);

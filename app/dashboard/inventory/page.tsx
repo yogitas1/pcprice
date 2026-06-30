@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 const BB_BASE = 'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn';
@@ -246,9 +246,9 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
-    const session = await butterbase.auth.getSession();
-    tokenRef.current = (session as any).data?.session?.access_token ?? null;
-    const userId = (session as any).data?.session?.user?.id;
+    const session = getSession();
+    tokenRef.current = session?.accessToken ?? null;
+    const userId = session?.user?.id ?? null;
     if (!userId) { router.push('/login'); return; }
 
     const cutoff14 = new Date(Date.now() - 14 * 86400000).toISOString();

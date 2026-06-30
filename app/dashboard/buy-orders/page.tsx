@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 import type { BuyOrder, CatalogItem, MatchLog, ListingSnapshot } from '@/lib/types';
 
 const BB_BASE = 'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn';
@@ -183,9 +183,9 @@ export default function BuyOrdersPage() {
   };
 
   const fetchData = useCallback(async () => {
-    const session = await butterbase.auth.getSession();
-    tokenRef.current = (session as any).data?.session?.access_token ?? null;
-    userIdRef.current = (session as any).data?.session?.user?.id ?? null;
+    const session = getSession();
+    tokenRef.current = session?.accessToken ?? null;
+    userIdRef.current = session?.user?.id ?? null;
 
     const { data: rawOrders } = await butterbase
       .from<BuyOrder>('buy_orders').select('*').in('status', ['active', 'filled', 'reauth_failed']).order('created_at', { ascending: false });

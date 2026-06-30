@@ -2,15 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 
 const BB_BASE = 'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn';
 
 type ConnectStatus = 'loading' | 'not_connected' | 'pending' | 'connected';
 
-async function getToken(): Promise<string | null> {
-  const session = await butterbase.auth.getSession();
-  return (session as any).data?.session?.access_token ?? null;
+function getToken(): string | null {
+  return getSession()?.accessToken ?? null;
 }
 
 function PayoutsContent() {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 import Link from 'next/link';
 
 const EVENT_TYPES = ['comeback', 'set_release', 'tournament', 'anniversary', 'movie_release', 'other'];
@@ -27,9 +27,8 @@ const EMPTY_FORM = {
   event_date: '', multiplier_boost: 0.10, notes: '',
 };
 
-async function getToken() {
-  const session = await butterbase.auth.getSession();
-  return (session as any).data?.session?.access_token ?? null;
+function getToken() {
+  return getSession()?.accessToken ?? null;
 }
 
 function EventForm({
@@ -148,8 +147,8 @@ export default function AdminEventsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadEvents = useCallback(async () => {
-    const session = await butterbase.auth.getSession();
-    const userId = (session as any).data?.session?.user?.id;
+    const session = getSession();
+    const userId = session?.user?.id ?? null;
     if (!userId) { router.push('/login'); return; }
     const adminCheck = await (butterbase as any).from('admin_users').select('id').eq('user_id', userId).maybeSingle();
     if (!adminCheck.data) { setForbidden(true); setLoading(false); return; }

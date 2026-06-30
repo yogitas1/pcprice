@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 
 const BB_BASE = 'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn';
 
@@ -13,9 +13,8 @@ const TIER_META: Record<string, { label: string; color: string; bg: string; bord
   power_seller: { label: 'Power Seller', color: 'text-amber-400', bg: 'bg-amber-900/30', border: 'border-amber-800', fill: 'bg-amber-400' },
 };
 
-async function getToken(): Promise<string | null> {
-  const session = await butterbase.auth.getSession();
-  return (session as any).data?.session?.access_token ?? null;
+function getToken(): string | null {
+  return getSession()?.accessToken ?? null;
 }
 
 function ScoreBar({ score, tier }: { score: number; tier: string }) {
@@ -47,8 +46,8 @@ export default function ReputationPage() {
   const [linkResult, setLinkResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const fetchProfile = async () => {
-    const session = await butterbase.auth.getSession();
-    const userId = (session as any).data?.session?.user?.id;
+    const session = getSession();
+    const userId = session?.user?.id ?? null;
     if (!userId) { setLoading(false); return; }
     const { data } = await (butterbase as any)
       .from('seller_profiles')

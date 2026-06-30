@@ -6,7 +6,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements, CardElement, useStripe, useElements,
 } from '@stripe/react-stripe-js';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 import type { CatalogItem } from '@/lib/types';
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -130,8 +130,7 @@ function BuyOrderForm() {
     }
 
     // 1. Create buy order — backend returns Stripe client_secret
-    const session = await butterbase.auth.getSession();
-    const token = (session as any).data?.session?.access_token;
+    const token = getSession()?.accessToken ?? null;
 
     let clientSecret: string | null = null;
     try {
