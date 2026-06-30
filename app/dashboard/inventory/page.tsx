@@ -321,11 +321,14 @@ export default function InventoryPage() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   useEffect(() => {
-    const channel = (butterbase as any)
-      .channel('inventory-listings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => fetchAll())
-      .subscribe();
-    return () => { (butterbase as any).removeChannel(channel); };
+    const token = getSession()?.accessToken;
+    if (!token) return;
+    const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'listings' }));
+    ws.onmessage = (e) => {
+      try { if (JSON.parse(e.data).type === 'change') fetchAll(); } catch {}
+    };
+    return () => { ws.close(); };
   }, [fetchAll]);
 
   const handleAction = useCallback(async (action: string, payload: object) => {

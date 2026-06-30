@@ -224,45 +224,53 @@ export default function BuyOrdersPage() {
 
   // Real-time: new matches
   useEffect(() => {
-    if (!userIdRef.current) return;
-    const channel = (butterbase as any)
-      .channel('buyer-match-log')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'match_log' },
-        (payload: any) => {
-          const m = payload.new;
+    const token = tokenRef.current;
+    if (!token) return;
+    const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'match_log' }));
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'change' && msg.op === 'INSERT') {
+          const m = msg.record;
           if (m.outcome === 'pending_approval') {
             setPendingMatches(prev => [...prev, m]);
             addNotif({ type: 'match', text: 'New match found — review to approve.', timestamp: new Date() });
           }
-        })
-      .subscribe();
-    return () => { (butterbase as any).removeChannel(channel); };
-  }, []);
+        }
+      } catch {}
+    };
+    return () => { ws.close(); };
+  }, [addNotif]);
 
   // Real-time: transaction status changes
   useEffect(() => {
-    if (!userIdRef.current) return;
-    const channel = (butterbase as any)
-      .channel('buyer-transactions')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'transactions' },
-        (payload: any) => {
-          const t = payload.new;
+    const token = tokenRef.current;
+    if (!token) return;
+    const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'transactions' }));
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'change' && msg.op === 'UPDATE') {
+          const t = msg.record;
           if (t.buyer_id !== userIdRef.current) return;
           if (t.escrow_status === 'awaiting_confirmation') {
             setDeliveredTxns(prev => {
-              const exists = prev.find(x => x.id === t.id);
+              const exists = prev.find((x: any) => x.id === t.id);
               return exists ? prev : [...prev, t];
             });
             addNotif({ type: 'delivered', text: 'Your item arrived — 3 days to confirm or dispute.', timestamp: new Date(), autoReleaseAt: t.auto_release_at });
           }
           if (t.escrow_status === 'released' || t.escrow_status === 'auto_released') {
-            setDeliveredTxns(prev => prev.filter(x => x.id !== t.id));
+            setDeliveredTxns(prev => prev.filter((x: any) => x.id !== t.id));
             addNotif({ type: 'payout', text: 'Escrow released — payment sent to seller.', timestamp: new Date() });
           }
-        })
-      .subscribe();
-    return () => { (butterbase as any).removeChannel(channel); };
-  }, []);
+        }
+      } catch {}
+    };
+    return () => { ws.close(); };
+  }, [addNotif]);
 
   const handleApprove = useCallback(async (matchId: string) => {
     const res = await fetch(`${BB_BASE}/approve-match`, {

@@ -163,16 +163,21 @@ export default function CatalogPage({ params }: Props) {
 
   // Real-time: refresh when new valuation is written
   useEffect(() => {
-    const channel = (butterbase as any)
-      .channel(`valuation-${catalogId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'item_valuations', filter: `catalog_id=eq.${catalogId}` },
-        (payload: any) => {
-          const v = payload.new;
+    const token = getSession()?.accessToken;
+    if (!token || !catalogId) return;
+    const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'item_valuations', filter: { catalog_id: catalogId } }));
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'change' && msg.op === 'INSERT') {
+          const v = msg.record;
           setValuations(prev => [...prev, v]);
           setLatestVal(v);
-        })
-      .subscribe();
-    return () => { (butterbase as any).removeChannel(channel); };
+        }
+      } catch {}
+    };
+    return () => { ws.close(); };
   }, [catalogId]);
 
   if (loading) {
