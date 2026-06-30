@@ -9,25 +9,49 @@ export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // The SDK auto-detects OAuth tokens from the URL hash/query params
-    // when detectSessionFromUrl is true (the default). Listen for the
-    // resulting auth state change and sync the token to a cookie.
-    const { unsubscribe } = butterbase.onAuthStateChange((event, session) => {
-      if (session?.accessToken) {
-        setAuthCookie(session.accessToken);
+    let done = false;
+
+    async function handleCallback() {
+      // Give the SDK a moment to parse OAuth tokens from the URL hash/params
+      await new Promise(r => setTimeout(r, 500));
+
+      const session = await butterbase.auth.getSession();
+      const token = (session as any)?.data?.session?.access_token
+        ?? (session as any)?.access_token
+        ?? (session as any)?.accessToken;
+
+      if (token && !done) {
+        done = true;
+        setAuthCookie(token);
         router.replace('/dashboard');
-      } else if (event === 'SIGNED_OUT') {
-        router.replace('/login');
+        return;
       }
-    });
 
-    // Fallback: if no auth event fires within 4s, give up and go to login
-    const timeout = setTimeout(() => router.replace('/login'), 4000);
+      // Fallback: listen for auth state change (fires when SDK processes URL tokens)
+      const { unsubscribe } = butterbase.onAuthStateChange((event, s) => {
+        const t = (s as any)?.access_token ?? (s as any)?.accessToken;
+        if (t && !done) {
+          done = true;
+          setAuthCookie(t);
+          router.replace('/dashboard');
+        }
+      });
 
-    return () => {
-      unsubscribe();
-      clearTimeout(timeout);
-    };
+      // Last resort: redirect to login after 6s
+      const timeout = setTimeout(() => {
+        if (!done) {
+          done = true;
+          router.replace('/login');
+        }
+      }, 6000);
+
+      return () => {
+        unsubscribe();
+        clearTimeout(timeout);
+      };
+    }
+
+    handleCallback();
   }, [router]);
 
   return (
