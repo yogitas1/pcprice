@@ -12,24 +12,27 @@ export default function AuthCallbackPage() {
     let done = false;
 
     async function handleCallback() {
-      // Give the SDK a moment to parse OAuth tokens from the URL hash/params
-      await new Promise(r => setTimeout(r, 500));
-
-      const session = await butterbase.auth.getSession();
-      const token = (session as any)?.data?.session?.access_token
-        ?? (session as any)?.access_token
-        ?? (session as any)?.accessToken;
-
-      if (token && !done) {
-        done = true;
-        setAuthCookie(token);
-        router.replace('/dashboard');
-        return;
+      // Try explicit OAuth callback handling (reads access_token from URL query params).
+      // The SDK also fires this automatically on init, so onAuthStateChange below is the
+      // primary signal — this is belt-and-suspenders for slower environments.
+      try {
+        const { data } = await butterbase.auth.handleOAuthCallback();
+        if (data?.session?.accessToken && !done) {
+          done = true;
+          const expiresIn = data.session.expiresAt
+            ? Math.max(60, data.session.expiresAt - Math.floor(Date.now() / 1000))
+            : 3600;
+          setAuthCookie(data.session.accessToken, expiresIn);
+          router.replace('/dashboard');
+          return;
+        }
+      } catch {
+        // No OAuth params in URL — handled by onAuthStateChange below
       }
 
-      // Fallback: listen for auth state change (fires when SDK processes URL tokens)
+      // Primary path: SDK fires SIGNED_IN via onAuthStateChange once it processes URL tokens
       const { unsubscribe } = butterbase.onAuthStateChange((event, s) => {
-        const t = (s as any)?.access_token ?? (s as any)?.accessToken;
+        const t = (s as any)?.accessToken ?? (s as any)?.access_token;
         if (t && !done) {
           done = true;
           setAuthCookie(t);
@@ -37,7 +40,7 @@ export default function AuthCallbackPage() {
         }
       });
 
-      // Last resort: redirect to login after 6s
+      // Last resort: redirect to login after 6s if no session materialised
       const timeout = setTimeout(() => {
         if (!done) {
           done = true;
