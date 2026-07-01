@@ -227,53 +227,65 @@ export default function BuyOrdersPage() {
 
   // Real-time: new matches (run once — ref keeps handler current without re-creating WS)
   useEffect(() => {
-    const token = tokenRef.current;
-    if (!token) return;
-    const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'match_log' }));
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'change' && msg.op === 'INSERT') {
-          const m = msg.record;
-          if (m.outcome === 'pending_approval') {
-            setPendingMatches(prev => [...prev, m]);
-            addNotifRef.current({ type: 'match', text: 'New match found — review to approve.', timestamp: new Date() });
+    let closed = false;
+    let ws: WebSocket | null = null;
+    const timer = setTimeout(() => {
+      if (closed) return;
+      const token = tokenRef.current;
+      if (!token) return;
+      ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
+      ws.onopen = () => { if (!closed) ws!.send(JSON.stringify({ type: 'subscribe', table: 'match_log' })); };
+      ws.onmessage = (e) => {
+        if (closed) return;
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'change' && msg.op === 'INSERT') {
+            const m = msg.record;
+            if (m.outcome === 'pending_approval') {
+              setPendingMatches(prev => [...prev, m]);
+              addNotifRef.current({ type: 'match', text: 'New match found — review to approve.', timestamp: new Date() });
+            }
           }
-        }
-      } catch {}
-    };
-    return () => { ws.close(); };
+        } catch {}
+      };
+    }, 0);
+    return () => { closed = true; clearTimeout(timer); ws?.close(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Real-time: transaction status changes
   useEffect(() => {
-    const token = tokenRef.current;
-    if (!token) return;
-    const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'transactions' }));
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'change' && msg.op === 'UPDATE') {
-          const t = msg.record;
-          if (t.buyer_id !== userIdRef.current) return;
-          if (t.escrow_status === 'awaiting_confirmation') {
-            setDeliveredTxns(prev => {
-              const exists = prev.find((x: any) => x.id === t.id);
-              return exists ? prev : [...prev, t];
-            });
-            addNotifRef.current({ type: 'delivered', text: 'Your item arrived — 3 days to confirm or dispute.', timestamp: new Date(), autoReleaseAt: t.auto_release_at });
+    let closed = false;
+    let ws: WebSocket | null = null;
+    const timer = setTimeout(() => {
+      if (closed) return;
+      const token = tokenRef.current;
+      if (!token) return;
+      ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
+      ws.onopen = () => { if (!closed) ws!.send(JSON.stringify({ type: 'subscribe', table: 'transactions' })); };
+      ws.onmessage = (e) => {
+        if (closed) return;
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'change' && msg.op === 'UPDATE') {
+            const t = msg.record;
+            if (t.buyer_id !== userIdRef.current) return;
+            if (t.escrow_status === 'awaiting_confirmation') {
+              setDeliveredTxns(prev => {
+                const exists = prev.find((x: any) => x.id === t.id);
+                return exists ? prev : [...prev, t];
+              });
+              addNotifRef.current({ type: 'delivered', text: 'Your item arrived — 3 days to confirm or dispute.', timestamp: new Date(), autoReleaseAt: t.auto_release_at });
+            }
+            if (t.escrow_status === 'released' || t.escrow_status === 'auto_released') {
+              setDeliveredTxns(prev => prev.filter((x: any) => x.id !== t.id));
+              addNotifRef.current({ type: 'payout', text: 'Escrow released — payment sent to seller.', timestamp: new Date() });
+            }
           }
-          if (t.escrow_status === 'released' || t.escrow_status === 'auto_released') {
-            setDeliveredTxns(prev => prev.filter((x: any) => x.id !== t.id));
-            addNotifRef.current({ type: 'payout', text: 'Escrow released — payment sent to seller.', timestamp: new Date() });
-          }
-        }
-      } catch {}
-    };
-    return () => { ws.close(); };
+        } catch {}
+      };
+    }, 0);
+    return () => { closed = true; clearTimeout(timer); ws?.close(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

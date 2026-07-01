@@ -324,14 +324,20 @@ export default function InventoryPage() {
   useEffect(() => { fetchAllRef.current = fetchAll; }, [fetchAll]);
 
   useEffect(() => {
-    const token = getSession()?.accessToken;
-    if (!token) return;
-    const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'listings' }));
-    ws.onmessage = (e) => {
-      try { if (JSON.parse(e.data).type === 'change') fetchAllRef.current(); } catch {}
-    };
-    return () => { ws.close(); };
+    let closed = false;
+    let ws: WebSocket | null = null;
+    const timer = setTimeout(() => {
+      if (closed) return;
+      const token = getSession()?.accessToken;
+      if (!token) return;
+      ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
+      ws.onopen = () => { if (!closed) ws!.send(JSON.stringify({ type: 'subscribe', table: 'listings' })); };
+      ws.onmessage = (e) => {
+        if (closed) return;
+        try { if (JSON.parse(e.data).type === 'change') fetchAllRef.current(); } catch {}
+      };
+    }, 0);
+    return () => { closed = true; clearTimeout(timer); ws?.close(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
