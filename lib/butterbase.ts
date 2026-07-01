@@ -14,6 +14,32 @@ const appId =
 
 export const butterbase = createClient({ appId, apiUrl });
 
+// ── Auto-restore session from cookie at module-load time (browser only) ───────
+// The SDK's sessionManager is in-memory only — it is empty on every page
+// refresh. Without this block, any butterbase.from() call made before a page
+// explicitly calls getSession() will go out without an Authorization header and
+// receive a 500 AUTH_REQUIRED from Butterbase. By restoring here (once, when
+// the module is first imported), all subsequent queries on any page are
+// automatically authenticated.
+if (typeof window !== 'undefined') {
+  try {
+    const _m = document.cookie.match(/(?:^|;\s*)bb_access_token=([^;]+)/);
+    if (_m) {
+      const _tok = decodeURIComponent(_m[1]);
+      const _p   = JSON.parse(atob(_tok.split('.')[1]));
+      const _uid = _p.sub ?? _p.user_id ?? '';
+      if (_uid) {
+        (butterbase as any).sessionManager?.setSessionFromLoginResponse?.(
+          { access_token: _tok, refresh_token: '', expires_in: 3600,
+            user: { id: _uid, email: _p.email ?? '' } },
+          'SESSION_RESTORED',
+        );
+      }
+    }
+  } catch { /* cookie absent or malformed — user is not logged in */ }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // butterbase.auth.getSession() does not exist on the SDK's public auth object —
 // it lives on the internal sessionManager. Expose it as a named export so all
 // pages can read the current in-memory session without touching SDK internals.
