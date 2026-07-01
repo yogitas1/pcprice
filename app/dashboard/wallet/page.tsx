@@ -20,7 +20,6 @@ type EscrowTxn = {
   auto_release_at: string | null;
   confirmed_at: string | null;
   created_at: string;
-  listing?: { catalog_items?: { name: string } };
 };
 
 type ReleasedTxn = {
@@ -30,7 +29,6 @@ type ReleasedTxn = {
   escrow_status: string;
   confirmed_at: string | null;
   created_at: string;
-  listing?: { catalog_items?: { name: string } };
 };
 
 function fmt(cents: number) {
@@ -53,7 +51,7 @@ function EscrowCard({ txn }: { txn: EscrowTxn }) {
     <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5 flex items-center justify-between gap-4">
       <div className="min-w-0">
         <p className="text-white font-medium truncate">
-          {txn.listing?.catalog_items?.name ?? 'Item'}
+          Sale #{txn.id.slice(0, 8)}
         </p>
         <p className="text-xs text-zinc-500 mt-0.5">
           {txn.escrow_status === 'awaiting_confirmation'
@@ -77,7 +75,7 @@ function ReleasedCard({ txn }: { txn: ReleasedTxn }) {
     <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5 flex items-center justify-between gap-4">
       <div className="min-w-0">
         <p className="text-white font-medium truncate">
-          {txn.listing?.catalog_items?.name ?? 'Item'}
+          Sale #{txn.id.slice(0, 8)}
         </p>
         <p className="text-xs text-zinc-500 mt-0.5">
           {txn.escrow_status === 'auto_released' ? 'Auto-released' : 'Confirmed'} · {fmtDate(txn.confirmed_at ?? txn.created_at)}
@@ -102,18 +100,18 @@ export default function WalletPage() {
   const fetchAll = useCallback(async () => {
     const session = getSession();
     const userId = session?.user?.id ?? null;
-    if (!userId) { router.push('/login'); return; }
+    if (!userId) return; // Wait for session — redirect handled by mount effect
 
     const [escrowRes, releasedRes, profileRes, buyerRes] = await Promise.all([
       butterbase
         .from('transactions')
-        .select('id, sale_price, application_fee, escrow_status, auto_release_at, confirmed_at, created_at, listing:listings(catalog_items(name))')
+        .select('id, sale_price, application_fee, escrow_status, auto_release_at, confirmed_at, created_at')
         .eq('seller_id', userId)
         .in('escrow_status', ['held', 'awaiting_confirmation'])
         .order('created_at', { ascending: false }),
       butterbase
         .from('transactions')
-        .select('id, sale_price, application_fee, escrow_status, confirmed_at, created_at, listing:listings(catalog_items(name))')
+        .select('id, sale_price, application_fee, escrow_status, confirmed_at, created_at')
         .eq('seller_id', userId)
         .in('escrow_status', ['released', 'auto_released'])
         .order('created_at', { ascending: false })
@@ -138,7 +136,18 @@ export default function WalletPage() {
     setLoading(false);
   }, [router]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    // Try immediately — works when navigating within the app (session in memory)
+    if (getSession()?.user?.id) { fetchAll(); return; }
+    // On page refresh the session loads async from localStorage; wait for it
+    const { unsubscribe } = butterbase.onAuthStateChange(() => { fetchAll(); });
+    // Hard redirect after 5 s if cookie is also missing (not logged in)
+    const timeout = setTimeout(() => {
+      if (!getSession()?.user?.id) router.push('/login');
+    }, 5000);
+    return () => { unsubscribe(); clearTimeout(timeout); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pendingAmount = escrow.reduce((s, t) => s + t.sale_price - t.application_fee, 0);
   const lifetimeAmount = released.reduce((s, t) => s + t.sale_price - t.application_fee, 0);

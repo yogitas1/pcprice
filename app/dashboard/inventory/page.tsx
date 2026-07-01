@@ -320,16 +320,20 @@ export default function InventoryPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  const fetchAllRef = useRef(fetchAll);
+  useEffect(() => { fetchAllRef.current = fetchAll; }, [fetchAll]);
+
   useEffect(() => {
     const token = getSession()?.accessToken;
     if (!token) return;
     const ws = new WebSocket(`wss://api.butterbase.ai/v1/app_w2wmfcnqn2j2/realtime?token=${encodeURIComponent(token)}`);
     ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', table: 'listings' }));
     ws.onmessage = (e) => {
-      try { if (JSON.parse(e.data).type === 'change') fetchAll(); } catch {}
+      try { if (JSON.parse(e.data).type === 'change') fetchAllRef.current(); } catch {}
     };
     return () => { ws.close(); };
-  }, [fetchAll]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAction = useCallback(async (action: string, payload: object) => {
     const res = await fetch(`${BB_BASE}/manage-listing`, {

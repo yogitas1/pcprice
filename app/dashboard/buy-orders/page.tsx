@@ -222,7 +222,10 @@ export default function BuyOrdersPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Real-time: new matches
+  const addNotifRef = useRef(addNotif);
+  useEffect(() => { addNotifRef.current = addNotif; }, [addNotif]);
+
+  // Real-time: new matches (run once — ref keeps handler current without re-creating WS)
   useEffect(() => {
     const token = tokenRef.current;
     if (!token) return;
@@ -235,13 +238,14 @@ export default function BuyOrdersPage() {
           const m = msg.record;
           if (m.outcome === 'pending_approval') {
             setPendingMatches(prev => [...prev, m]);
-            addNotif({ type: 'match', text: 'New match found — review to approve.', timestamp: new Date() });
+            addNotifRef.current({ type: 'match', text: 'New match found — review to approve.', timestamp: new Date() });
           }
         }
       } catch {}
     };
     return () => { ws.close(); };
-  }, [addNotif]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Real-time: transaction status changes
   useEffect(() => {
@@ -260,17 +264,18 @@ export default function BuyOrdersPage() {
               const exists = prev.find((x: any) => x.id === t.id);
               return exists ? prev : [...prev, t];
             });
-            addNotif({ type: 'delivered', text: 'Your item arrived — 3 days to confirm or dispute.', timestamp: new Date(), autoReleaseAt: t.auto_release_at });
+            addNotifRef.current({ type: 'delivered', text: 'Your item arrived — 3 days to confirm or dispute.', timestamp: new Date(), autoReleaseAt: t.auto_release_at });
           }
           if (t.escrow_status === 'released' || t.escrow_status === 'auto_released') {
             setDeliveredTxns(prev => prev.filter((x: any) => x.id !== t.id));
-            addNotif({ type: 'payout', text: 'Escrow released — payment sent to seller.', timestamp: new Date() });
+            addNotifRef.current({ type: 'payout', text: 'Escrow released — payment sent to seller.', timestamp: new Date() });
           }
         }
       } catch {}
     };
     return () => { ws.close(); };
-  }, [addNotif]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleApprove = useCallback(async (matchId: string) => {
     const res = await fetch(`${BB_BASE}/approve-match`, {
