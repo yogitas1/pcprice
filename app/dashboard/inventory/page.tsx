@@ -397,7 +397,7 @@ export default function InventoryPage() {
           <div className="text-5xl mb-4">📦</div>
           <h2 className="text-white font-semibold text-lg mb-1">No items yet</h2>
           <p className="text-zinc-400 text-sm mb-6 max-w-xs">Upload your first collectible and the AI will scan and verify it before listing.</p>
-          <Link href="/dashboard/inventory/upload"
+          <Link href="/dashboard/inventory/new"
             className="rounded-md bg-violet-600 hover:bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white">
             Upload your first item
           </Link>

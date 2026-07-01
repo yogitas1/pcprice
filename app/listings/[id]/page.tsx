@@ -6,7 +6,9 @@ import Link from 'next/link';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
+import { GRADE_LABELS, GRADE_FRACTION } from '@/lib/grades';
+import { RARITY_LABELS, RARITY_COLORS } from '@/lib/rarity';
 import type { Listing, ListingPriceHistory, SellerProfile } from '@/lib/types';
 
 interface FullListing extends Listing {
@@ -15,6 +17,7 @@ interface FullListing extends Listing {
   group_name?: string;
   album?: string;
   version?: string;
+  catalog_rarity?: string;
   condition_grade?: number;
   scan_defects?: string[];
   authenticity_score?: number;
@@ -29,14 +32,11 @@ interface Valuation {
   confidence_score: number;
 }
 
-const GRADE_LABEL: Record<number, string> = {
-  5: 'Mint', 4: 'Near Mint', 3: 'Excellent', 2: 'Good', 1: 'Fair'
-};
-const TIER_META: Record<string, { label: string; color: string }> = {
-  new:          { label: 'New',         color: 'text-zinc-400 bg-zinc-800 border-zinc-700' },
-  verified:     { label: 'Verified',    color: 'text-blue-400 bg-blue-900/20 border-blue-800' },
-  trusted:      { label: 'Trusted',     color: 'text-green-400 bg-green-900/20 border-green-800' },
-  power_seller: { label: 'Power Seller',color: 'text-violet-400 bg-violet-900/20 border-violet-800' },
+const TIER_META: Record<string, { label: string; color: string; desc: string }> = {
+  new:          { label: 'New Seller',   color: 'text-zinc-400 bg-zinc-800 border-zinc-700',           desc: 'No verified track record yet — new to the platform (score 0–30).' },
+  verified:     { label: 'Verified',     color: 'text-blue-400 bg-blue-900/20 border-blue-800',         desc: 'Completed identity verification with a positive selling history (score 31–55).' },
+  trusted:      { label: 'Trusted',      color: 'text-green-400 bg-green-900/20 border-green-800',       desc: 'Established seller — zero disputes, consistent positive reviews (score 56–79).' },
+  power_seller: { label: 'Power Seller', color: 'text-violet-400 bg-violet-900/20 border-violet-800',    desc: 'Top tier — high volume, near-perfect track record (score 80–100).' },
 };
 const STATUS_BANNER: Record<string, { label: string; color: string }> = {
   sold:          { label: 'Sold', color: 'bg-green-900/20 border-green-800 text-green-400' },
@@ -86,13 +86,15 @@ export default function ListingDetailPage() {
       const [
         { data: itemRows },
         { data: histRows },
-        { data: { user: currentUser } = { user: null } }
       ] = await Promise.all([
         butterbase.from<any>('items').select('*').eq('id', listRow.item_id).single(),
         butterbase.from<ListingPriceHistory>('listing_price_history')
           .select('*').eq('listing_id', listingId).order('changed_at', { ascending: true }),
-        butterbase.auth.getUser()
       ]);
+
+      // Get current user from session (no API call needed)
+      const currentUser = getSession()?.user ?? null;
+      setCurrentUserId(currentUser?.id ?? '');
 
       if (itemRows) {
         setListing(prev => prev ? {
@@ -129,7 +131,8 @@ export default function ListingDetailPage() {
             catalog_name: catRow.name,
             group_name: catRow.group_name,
             album: catRow.album,
-            version: catRow.version
+            version: catRow.version,
+            catalog_rarity: catRow.rarity_tier,
           } : prev);
         }
         if (valRows?.[0]) setVal(valRows[0]);
@@ -138,7 +141,6 @@ export default function ListingDetailPage() {
       }
 
       setHistory(histRows ?? []);
-      setCurrentUserId(currentUser?.id ?? '');
     } catch (e: any) {
       setError(e.message ?? 'Failed to load listing');
     } finally {
@@ -155,8 +157,7 @@ export default function ListingDetailPage() {
     setOfferSending(true);
     setOfferErr('');
     try {
-      const { data: sd } = await butterbase.auth.refreshSession();
-      const token = sd?.access_token ?? '';
+      const token = getSession()?.accessToken ?? '';
       const res = await fetch('https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn/handle-offer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -296,13 +297,23 @@ export default function ListingDetailPage() {
               )}
             </div>
 
+            {/* Rarity */}
+            {listing.catalog_rarity && (
+              <div className="flex items-center justify-between rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-3">
+                <span className="text-sm text-zinc-400">Rarity</span>
+                <span className={`text-sm font-semibold ${RARITY_COLORS[listing.catalog_rarity] ?? 'text-zinc-400'}`}>
+                  {RARITY_LABELS[listing.catalog_rarity] ?? listing.catalog_rarity}
+                </span>
+              </div>
+            )}
+
             {/* Condition */}
             {grade != null && (
               <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-zinc-400">Verified condition</span>
                   <span className="text-sm font-semibold text-white">
-                    {GRADE_LABEL[grade] ?? grade} ({grade}/5)
+                    {GRADE_FRACTION[grade]}/5 · {GRADE_LABELS[grade] ?? grade}
                   </span>
                 </div>
                 {(listing.scan_defects ?? []).length > 0 && (
@@ -351,9 +362,15 @@ export default function ListingDetailPage() {
                 )}
               </div>
               {tierMeta && (
-                <span className={`text-xs font-medium px-2 py-1 rounded-full border ${tierMeta.color}`}>
-                  {tierMeta.label}
-                </span>
+                <div className="group relative">
+                  <span className={`cursor-help text-xs font-medium px-2 py-1 rounded-full border ${tierMeta.color}`}>
+                    {tierMeta.label}
+                  </span>
+                  <div className="absolute right-0 top-7 z-10 w-60 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-xs text-zinc-400 leading-relaxed hidden group-hover:block shadow-xl">
+                    <p className="text-white font-medium mb-1">{tierMeta.label}</p>
+                    {tierMeta.desc}
+                  </div>
+                </div>
               )}
             </div>
 

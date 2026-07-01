@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { butterbase } from '@/lib/butterbase';
+import { RARITY_LABELS, RARITY_COLORS } from '@/lib/rarity';
 import type { CatalogItem } from '@/lib/types';
 
 interface CatalogWithValuation extends CatalogItem {
@@ -10,13 +11,6 @@ interface CatalogWithValuation extends CatalogItem {
   confidence_score?: number;
   captured_at?: string;
 }
-
-const RARITY_COLOR: Record<string, string> = {
-  common:      'text-zinc-400',
-  uncommon:    'text-green-400',
-  rare:        'text-blue-400',
-  'ultra-rare':'text-purple-400',
-};
 
 export default function MarketPage() {
   const [items, setItems] = useState<CatalogWithValuation[]>([]);
@@ -97,21 +91,30 @@ export default function MarketPage() {
               href={`/dashboard/market/${item.id}`}
               className="rounded-xl bg-zinc-900 border border-zinc-800 p-4 hover:border-violet-700 hover:bg-zinc-800/60 transition-all group"
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate group-hover:text-violet-300 transition-colors">
-                    {item.name}
-                  </p>
+              <div className="flex items-start gap-3 mb-3">
+                {/* Thumbnail */}
+                <div className="shrink-0 w-10 rounded overflow-hidden bg-zinc-800" style={{ height: 56 }}>
+                  {item.reference_image_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={item.reference_image_url} alt={item.name} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-zinc-600 text-lg">🃏</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-1">
+                    <p className="text-sm font-semibold text-white truncate group-hover:text-violet-300 transition-colors">
+                      {item.name}
+                    </p>
+                    {item.rarity_tier && (
+                      <span className={`text-xs font-medium shrink-0 ${RARITY_COLORS[item.rarity_tier] ?? 'text-zinc-400'}`}>
+                        {RARITY_LABELS[item.rarity_tier] ?? item.rarity_tier}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-zinc-500 truncate mt-0.5">
                     {item.group_name} · {item.album}
                     {item.version ? ` · ${item.version}` : ''}
                   </p>
                 </div>
-                {item.rarity_tier && (
-                  <span className={`text-xs font-medium shrink-0 ${RARITY_COLOR[item.rarity_tier] ?? 'text-zinc-400'}`}>
-                    {item.rarity_tier}
-                  </span>
-                )}
               </div>
 
               <div className="flex items-end justify-between">
