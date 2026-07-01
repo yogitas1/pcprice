@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { butterbase, getSession } from '@/lib/butterbase';
 
@@ -12,8 +12,62 @@ function getToken(): string | null {
   return getSession()?.accessToken ?? null;
 }
 
+function TermsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
+      <div
+        className="relative w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-zinc-900 border border-zinc-700 p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-white font-semibold text-base">Payment & Payout Terms</h2>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-lg leading-none">✕</button>
+        </div>
+        <div className="space-y-4 text-sm text-zinc-400 leading-relaxed">
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Platform Fee</p>
+            <p>PCPrice charges an 8% platform fee on every completed sale. This fee is deducted from the sale price before payout to the seller. There are no listing fees or monthly charges.</p>
+          </section>
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Stripe Connect</p>
+            <p>Seller payouts are processed via Stripe Connect. You must complete Stripe's identity verification (KYC) before receiving any payout. PCPrice never stores your banking credentials or identity documents — all KYC is handled directly by Stripe.</p>
+          </section>
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Escrow & Release</p>
+            <p>Funds are held in escrow from the moment a sale completes until delivery is confirmed. Buyers have 3 days after confirmed delivery to confirm receipt or file a dispute. If no action is taken, escrow is automatically released to the seller after 3 days. PCPrice is not responsible for packages lost or damaged in transit.</p>
+          </section>
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Payout Timing</p>
+            <p>Once escrow is released, Stripe sends your payout within 1–2 business days, subject to your Stripe Connect account's standard payout schedule. Stripe may place a hold on new accounts for the first 7 days.</p>
+          </section>
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Pre-authorized Holds (Buy Orders)</p>
+            <p>When placing a buy order, your card is pre-authorized but not charged. The hold expires and is cancelled if no matching item is found within your order window. You will only be charged when a verified match is executed and confirmed by the agent.</p>
+          </section>
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Disputes & Refunds</p>
+            <p>If you receive an item that materially differs from its listed condition or is not delivered, you may file a dispute within the 3-day confirmation window. PCPrice reviews disputes and may issue full or partial refunds at its discretion. Chargebacks filed with your card issuer outside this process may result in account suspension.</p>
+          </section>
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Off-Platform Payments</p>
+            <p>All transactions must be completed through PCPrice. Any off-platform payment requests from other users must be reported immediately. PCPrice will never ask you to send payment outside the platform.</p>
+          </section>
+          <section>
+            <p className="text-zinc-200 font-medium mb-1">Spend Caps</p>
+            <p>Spend caps set on buy orders are hard limits. The agent will never exceed your configured cap regardless of match availability. Caps reset or roll over according to the mode you selected (global or per-tier).</p>
+          </section>
+          <p className="text-zinc-600 text-xs pt-2 border-t border-zinc-800">
+            Last updated June 2026. By using PCPrice payments you agree to these terms and Stripe's <a href="https://stripe.com/legal" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-400">Connected Account Agreement</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PayoutsContent() {
   const searchParams = useSearchParams();
+  const [showTerms, setShowTerms] = useState(false);
   const [status, setStatus] = useState<ConnectStatus>('loading');
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -66,7 +120,16 @@ function PayoutsContent() {
 
   return (
     <div className="p-8 max-w-xl">
-      <h1 className="text-2xl font-bold text-white mb-1">Payout Settings</h1>
+      {showTerms && <TermsModal onClose={() => setShowTerms(false)} />}
+      <div className="flex items-start justify-between mb-1">
+        <h1 className="text-2xl font-bold text-white">Payout Settings</h1>
+        <button
+          onClick={() => setShowTerms(true)}
+          className="text-xs text-zinc-500 hover:text-violet-400 underline transition-colors mt-1"
+        >
+          Terms &amp; Conditions
+        </button>
+      </div>
       <p className="text-zinc-400 text-sm mb-8">
         Connect your bank account to receive payouts when your items sell.
       </p>

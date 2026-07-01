@@ -2,6 +2,12 @@ import Link from 'next/link';
 
 const SETTINGS_SECTIONS = [
   {
+    href: '/dashboard/settings/appearance',
+    icon: '🎨',
+    title: 'Appearance',
+    description: 'Switch between dark and light mode.',
+  },
+  {
     href: '/dashboard/settings/payouts',
     icon: '💳',
     title: 'Payout Settings',

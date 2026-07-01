@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { butterbase } from '@/lib/butterbase';
+import { butterbase, getSession } from '@/lib/butterbase';
 import PhotoUploader, { type UploadedPhoto } from '@/components/PhotoUploader';
+import { RARITY_COLORS, RARITY_LABELS } from '@/lib/rarity';
 import type { CatalogItem } from '@/lib/types';
 
 type Step = 'upload' | 'match' | 'submitting' | 'done';
@@ -17,12 +18,6 @@ interface MatchResult {
   notes: string;
 }
 
-const RARITY_COLORS: Record<string, string> = {
-  common: 'text-zinc-400',
-  uncommon: 'text-green-400',
-  rare: 'text-blue-400',
-  'ultra-rare': 'text-purple-400',
-};
 
 export default function NewInventoryPage() {
   const router = useRouter();
@@ -48,8 +43,7 @@ export default function NewInventoryPage() {
     setMatching(true);
     setError('');
     try {
-      const { data: sessionData } = await butterbase.auth.refreshSession();
-      const token = sessionData?.access_token ?? '';
+      const token = getSession()?.accessToken ?? '';
 
       const res = await fetch(
         'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn/catalog-match',
@@ -112,9 +106,8 @@ export default function NewInventoryPage() {
     }
   }
 
-  async function getToken(): Promise<string> {
-    const { data } = await butterbase.auth.refreshSession();
-    return data?.access_token ?? '';
+  function getToken(): string {
+    return getSession()?.accessToken ?? '';
   }
 
   const filteredCatalog = catalogItems.filter((c) => {
@@ -204,12 +197,18 @@ export default function NewInventoryPage() {
                   selectedCatalogId === c.id ? 'bg-violet-600/20 border-l-2 border-violet-500' : ''
                 }`}
               >
+                {c.reference_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.reference_image_url} alt={c.name} className="w-8 h-11 object-cover rounded shrink-0 bg-zinc-800" />
+                ) : (
+                  <div className="w-8 h-11 rounded bg-zinc-800 shrink-0 flex items-center justify-center text-zinc-600 text-xs">?</div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">{c.name}</p>
                   <p className="text-xs text-zinc-500 truncate">{c.group_name} · {c.album}{c.version ? ` · ${c.version}` : ''}</p>
                 </div>
                 <span className={`text-xs font-medium shrink-0 ${RARITY_COLORS[c.rarity_tier ?? ''] ?? 'text-zinc-400'}`}>
-                  {c.rarity_tier}
+                  {RARITY_LABELS[c.rarity_tier ?? ''] ?? c.rarity_tier}
                 </span>
               </button>
             ))}

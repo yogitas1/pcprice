@@ -7,6 +7,7 @@ import {
   Elements, CardElement, useStripe, useElements,
 } from '@stripe/react-stripe-js';
 import { butterbase, getSession } from '@/lib/butterbase';
+import { GRADE_LABELS, GRADE_FRACTION } from '@/lib/grades';
 import type { CatalogItem } from '@/lib/types';
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -14,15 +15,31 @@ const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : 
 
 const BB_BASE = 'https://api.butterbase.ai/v1/app_w2wmfcnqn2j2/fn';
 
-const GRADE_LABELS: Record<number, string> = {
-  1: 'Fair', 2: 'Good', 3: 'Excellent', 4: 'Near Mint', 5: 'Mint',
-};
-
-const TIER_OPTIONS = [
-  { value: 'new',          label: 'Any seller' },
-  { value: 'verified',     label: 'Verified+' },
-  { value: 'trusted',      label: 'Trusted+' },
-  { value: 'power_seller', label: 'Power Seller only' },
+const TIER_OPTIONS: { value: string; label: string; score: string; desc: string }[] = [
+  {
+    value: 'new',
+    label: 'Any Seller',
+    score: '0–30',
+    desc: 'Sellers with no verified track record. Widest selection, lowest barrier to entry.',
+  },
+  {
+    value: 'verified',
+    label: 'Verified+',
+    score: '31–55',
+    desc: 'Completed identity verification with a positive selling history.',
+  },
+  {
+    value: 'trusted',
+    label: 'Trusted+',
+    score: '56–79',
+    desc: 'Established sellers — zero disputes, consistent positive reviews.',
+  },
+  {
+    value: 'power_seller',
+    label: 'Power Seller Only',
+    score: '80–100',
+    desc: 'Top 10% of sellers. High-volume, near-perfect track record.',
+  },
 ];
 
 const CARD_ELEMENT_OPTIONS = {
@@ -305,7 +322,7 @@ function BuyOrderForm() {
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm text-zinc-300">Minimum condition</label>
               <span className="text-sm font-medium text-violet-400">
-                {minGrade}/5 — {GRADE_LABELS[minGrade]}
+                {GRADE_FRACTION[minGrade]}/5 · {GRADE_LABELS[minGrade]}
               </span>
             </div>
             <input
@@ -318,26 +335,46 @@ function BuyOrderForm() {
               className="w-full accent-violet-600"
             />
             <div className="flex justify-between text-xs text-zinc-600 mt-1 select-none">
-              <span>Fair</span>
-              <span>Good</span>
-              <span>Excellent</span>
-              <span>Near Mint</span>
-              <span>Mint</span>
+              <span>1/5 Poor</span>
+              <span>2/5 Fair</span>
+              <span>3/5 Good</span>
+              <span>4/5 Excellent</span>
+              <span>5/5 Mint</span>
             </div>
           </div>
 
           {/* Min seller tier */}
           <div>
-            <label className="block text-sm text-zinc-300 mb-1.5">Minimum seller tier</label>
-            <select
-              value={minTier}
-              onChange={(e) => setMinTier(e.target.value)}
-              className="w-full rounded-lg bg-zinc-900 border border-zinc-700 text-white px-3 py-2.5 text-sm focus:outline-none focus:border-violet-600 transition-colors"
-            >
+            <label className="block text-sm text-zinc-300 mb-2">Minimum seller tier</label>
+            <div className="space-y-2">
               {TIER_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setMinTier(t.value)}
+                  className={`w-full flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors group ${
+                    minTier === t.value
+                      ? 'border-violet-600 bg-violet-600/10'
+                      : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500'
+                  }`}
+                >
+                  <div className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                    minTier === t.value ? 'border-violet-500 bg-violet-500' : 'border-zinc-600'
+                  }`}>
+                    {minTier === t.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-medium ${minTier === t.value ? 'text-violet-300' : 'text-white'}`}>
+                        {t.label}
+                      </span>
+                      <span className="text-xs text-zinc-600 font-mono">{t.score} pts</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{t.desc}</p>
+                  </div>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           {/* Execution mode */}

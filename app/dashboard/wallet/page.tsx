@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { butterbase, getSession } from '@/lib/butterbase';
 
+type BuyerTxn = {
+  id: string;
+  sale_price: number;
+  escrow_status: string;
+  created_at: string;
+};
+
 type EscrowTxn = {
   id: string;
   sale_price: number;
@@ -88,6 +95,7 @@ export default function WalletPage() {
   const router = useRouter();
   const [escrow, setEscrow] = useState<EscrowTxn[]>([]);
   const [released, setReleased] = useState<ReleasedTxn[]>([]);
+  const [buyerTxns, setBuyerTxns] = useState<BuyerTxn[]>([]);
   const [stripeConnected, setStripeConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -96,7 +104,7 @@ export default function WalletPage() {
     const userId = session?.user?.id ?? null;
     if (!userId) { router.push('/login'); return; }
 
-    const [escrowRes, releasedRes, profileRes] = await Promise.all([
+    const [escrowRes, releasedRes, profileRes, buyerRes] = await Promise.all([
       butterbase
         .from('transactions')
         .select('id, sale_price, application_fee, escrow_status, auto_release_at, confirmed_at, created_at, listing:listings(catalog_items(name))')
@@ -115,10 +123,16 @@ export default function WalletPage() {
         .select('stripe_account_id')
         .eq('user_id', userId)
         .limit(1),
+      butterbase
+        .from('transactions')
+        .select('id, sale_price, escrow_status, created_at')
+        .eq('buyer_id', userId)
+        .in('escrow_status', ['held', 'awaiting_confirmation', 'released', 'auto_released']),
     ]);
 
     setEscrow((escrowRes.data as EscrowTxn[]) ?? []);
     setReleased((releasedRes.data as ReleasedTxn[]) ?? []);
+    setBuyerTxns((buyerRes.data as BuyerTxn[]) ?? []);
     const profile = (profileRes.data as any[])?.[0];
     setStripeConnected(!!profile?.stripe_account_id);
     setLoading(false);
@@ -128,6 +142,8 @@ export default function WalletPage() {
 
   const pendingAmount = escrow.reduce((s, t) => s + t.sale_price - t.application_fee, 0);
   const lifetimeAmount = released.reduce((s, t) => s + t.sale_price - t.application_fee, 0);
+  const buyerPendingAmount = buyerTxns.filter(t => ['held', 'awaiting_confirmation'].includes(t.escrow_status)).reduce((s, t) => s + t.sale_price, 0);
+  const buyerLifetimeAmount = buyerTxns.filter(t => ['released', 'auto_released'].includes(t.escrow_status)).reduce((s, t) => s + t.sale_price, 0);
 
   if (loading) {
     return (
@@ -170,6 +186,25 @@ export default function WalletPage() {
           <p className="text-zinc-500 text-xs mt-1">{released.length} completed sale{released.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
+
+      {/* Buyer totals */}
+      {buyerTxns.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">Buying activity</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl bg-zinc-900 border border-zinc-800 px-5 py-4">
+              <p className="text-zinc-400 text-xs mb-1">In-escrow purchases</p>
+              <p className="text-white text-xl font-bold">{fmt(buyerPendingAmount)}</p>
+              <p className="text-zinc-500 text-xs mt-1">funds held until delivery confirmed</p>
+            </div>
+            <div className="rounded-xl bg-zinc-900 border border-zinc-800 px-5 py-4">
+              <p className="text-zinc-400 text-xs mb-1">Lifetime spent</p>
+              <p className="text-white text-xl font-bold">{fmt(buyerLifetimeAmount)}</p>
+              <p className="text-zinc-500 text-xs mt-1">{buyerTxns.filter(t => ['released', 'auto_released'].includes(t.escrow_status)).length} completed purchase{buyerTxns.filter(t => ['released', 'auto_released'].includes(t.escrow_status)).length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Escrow section */}
       {escrow.length > 0 && (

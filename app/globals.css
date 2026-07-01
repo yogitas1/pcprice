@@ -25,3 +25,47 @@ body {
     text-wrap: balance;
   }
 }
+
+/* ── Light mode overrides ──────────────────────────────────────────────────── */
+/* The app is built dark-first. When data-theme="light" is set on <html>,
+   these rules flip the palette by overriding Tailwind's generated classes.
+   Uses [class~=] attribute selector which matches a class in a space-separated list. */
+
+[data-theme="light"] body {
+  background-color: #f8f8f8;
+  color: #09090b;
+}
+
+/* Backgrounds */
+[data-theme="light"] [class~="bg-zinc-950"] { background-color: #f8f8f8; }
+[data-theme="light"] [class~="bg-zinc-900"] { background-color: #f4f4f5; }
+[data-theme="light"] [class~="bg-zinc-800"] { background-color: #e4e4e7; }
+[data-theme="light"] [class~="bg-zinc-700"] { background-color: #d4d4d8; }
+[data-theme="light"] [class~="bg-black"]    { background-color: #f4f4f5; }
+
+/* Text */
+[data-theme="light"] [class~="text-white"]   { color: #09090b; }
+[data-theme="light"] [class~="text-zinc-100"]{ color: #18181b; }
+[data-theme="light"] [class~="text-zinc-200"]{ color: #27272a; }
+[data-theme="light"] [class~="text-zinc-300"]{ color: #3f3f46; }
+[data-theme="light"] [class~="text-zinc-400"]{ color: #52525b; }
+[data-theme="light"] [class~="text-zinc-500"]{ color: #71717a; }
+[data-theme="light"] [class~="text-zinc-600"]{ color: #71717a; }
+
+/* Borders */
+[data-theme="light"] [class~="border-zinc-800"] { border-color: #e4e4e7; }
+[data-theme="light"] [class~="border-zinc-700"] { border-color: #d4d4d8; }
+[data-theme="light"] [class~="border-zinc-600"] { border-color: #a1a1aa; }
+
+/* Inputs and focus rings */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  color: #09090b;
+  background-color: #ffffff;
+}
+[data-theme="light"] ::placeholder { color: #a1a1aa; }
+
+/* Dividers */
+[data-theme="light"] [class~="divide-zinc-800"] > * + * { border-color: #e4e4e7; }
+[data-theme="light"] [class~="divide-zinc-700"] > * + * { border-color: #d4d4d8; }
