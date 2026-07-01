@@ -348,7 +348,7 @@ export default function InventoryPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-white">Inventory</h1>
-        <Link href="/dashboard/inventory/upload"
+        <Link href="/dashboard/inventory/new"
           className="rounded-md bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition-colors">
           + Upload item
         </Link>

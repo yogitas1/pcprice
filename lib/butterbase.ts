@@ -1,8 +1,12 @@
 import { createClient } from '@butterbase/sdk';
 
-const apiUrl =
-  process.env.NEXT_PUBLIC_BUTTERBASE_URL ||
-  'https://api.butterbase.ai';
+// The Butterbase SDK appends /v1/${appId} to apiUrl internally, so apiUrl must be
+// just the origin. Strip any /v1/... path the env var may include (Vercel dashboard
+// was set to the full URL with appId, causing double-path 404s).
+const _rawUrl = process.env.NEXT_PUBLIC_BUTTERBASE_URL || 'https://api.butterbase.ai';
+const apiUrl = (() => {
+  try { return new URL(_rawUrl).origin; } catch { return 'https://api.butterbase.ai'; }
+})();
 
 const appId =
   process.env.NEXT_PUBLIC_BUTTERBASE_APP_ID ??
